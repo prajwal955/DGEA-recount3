@@ -17,12 +17,7 @@ An end-to-end bulk RNA-seq analysis workflow in R, starting from public data on 
 6. Visualizes results: MA plots, heatmaps (pheatmap + ComplexHeatmap), volcano plots (ggplot2 + EnhancedVolcano)
 7. Runs GO enrichment and GSEA on the resulting gene list
 
-## Key Results
-
-Volcano: figures/Volcano plot
-
 ## Files
 
 - `rnaseq-dgea-recount3.Rmd` — full annotated analysis script
-- `figures/` — exported plots referenced above
 
