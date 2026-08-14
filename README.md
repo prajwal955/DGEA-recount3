@@ -17,6 +17,26 @@ An end-to-end bulk RNA-seq analysis workflow in R, starting from public data on 
 6. Visualizes results: MA plots, heatmaps (pheatmap + ComplexHeatmap), volcano plots (ggplot2 + EnhancedVolcano)
 7. Runs GO enrichment and GSEA on the resulting gene list
 
+## Key Results
+
+**PCA plot** — samples cluster clearly by condition along the first principal component, confirming the Control and Patient groups are separable before trusting downstream DE results.
+
+![PCA plot](figures/pca.png)
+
+**Heatmap** — expression patterns of the top significant genes across samples, clustered by both gene and sample, show consistent, condition-specific expression blocks.
+
+![Heatmap](figures/heatmap.png)
+
+**Volcano plot** — combining fold change with statistical confidence reveals a clear pattern: down-regulated genes dominate, both in number and in significance, compared to a smaller, less pronounced set of up-regulated genes.
+
+![Volcano plot](figures/volcano.png)
+
+**GO enrichment** — functional enrichment of the significant gene set highlights the biological processes most associated with this expression signature.
+
+![GO Analysis](figures/go-analysis.png)
+
+Together, these results tell a consistent story: samples separate cleanly by condition, and the resulting differential expression signature is dominated by down-regulation, enriched for specific, interpretable biological processes.
+
 ## Files
 
 - `rnaseq-dgea-recount3.Rmd` — full annotated analysis script
