@@ -1,0 +1,359 @@
+---
+title: "RNA-seq Differential Expression & Functional Enrichment Pipeline"
+author: "Your Name"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    theme: cosmo
+  pdf_document:
+    toc: true
+  word_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = TRUE, message = FALSE, fig.width = 8, fig.height = 6)
+```
+
+# Overview
+
+This document walks through a bulk RNA-seq workflow starting from public data on **recount3**, through differential expression testing with **DESeq2**, quality control (PCA), visualization (heatmaps, volcano plots), and functional enrichment (GO, GSEA).
+
+Example dataset: project `SRP095512` (human, GENCODE v26 annotation).
+
+---
+
+# 1. Library Installation & Loading
+
+```{r install-packages, eval=FALSE}
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install(c(
+  "DESeq2", "EnhancedVolcano", "tidyverse", "dplyr", "ggplot2",
+  "recount3", "org.Hs.eg.db", "clusterProfiler", "AnnotationDbi",
+  "pheatmap", "ComplexHeatmap", "apeglm "
+))
+```
+
+```{r load-libraries}
+library(DESeq2)
+library(EnhancedVolcano)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(recount3)
+library(org.Hs.eg.db)
+library(clusterProfiler)
+library(AnnotationDbi)
+library(pheatmap)
+library(ComplexHeatmap)
+library(apeglm)
+```
+
+---
+
+# 2. Data Acquisition (recount3)
+
+```{r fetch-data}
+rse <- recount3::create_rse_manual(
+  project = "SRP095512",
+  project_home = "data_sources/sra",
+  organism = "human",
+  annotation = "gencode_v26",
+  type = "gene"
+)
+
+head(rowRanges(rse))    # genomic coordinates of sequenced genes
+summary(assay(rse))     # basic min/max/mean statistics
+colnames(colData(rse))  # column names of metadata
+```
+
+---
+
+# 3. Counts Conversion
+
+recount3 provides raw base-pair coverage, not standard read counts — convert before use in DESeq2.
+
+```{r counts-conversion}
+# finding out whether raw base-pair coverage counts are present
+assayNames(rse)
+
+# basic min/max/mean statistics pre read-count correction
+summary(assay(rse))
+colSums(assay(rse) / 1e6)  # counts per million
+
+# converting raw base-pair coverage counts to read counts as a new column
+assay(rse, "counts") <- transform_counts(rse)
+
+# verifying the creation of new column
+assayNames(rse)
+
+# basic min/max/mean statistics post read-count correction
+summary(assay(rse, "counts"))
+colSums(assay(rse, "counts") / 1e6)  # counts per million
+
+# creating a matrix with read counts
+expr_array <- assay(rse, "counts")
+dim(expr_array)
+colnames(expr_array)
+class(expr_array)
+
+# storing metadata as a data frame
+meta <- as.data.frame(colData(rse))
+head(meta)
+
+# setting the order level of counts as first
+assays(rse) <- assays(rse)[c("counts", "raw_counts")]
+assays(rse)
+```
+
+---
+
+# 4. Building the DESeq2 Dataset
+
+```{r build-dds}
+meta$sra.sample_title
+
+# Converting sample info into two values: Ctrl vs Pat (*varies upon experiment data)
+colData(rse)$condition <- sub("\\s\\d+$", "",
+                              sub("^DM\\.", "", rse$sra.sample_title))
+
+# Viewing the count of samples in each condition
+table(colData(rse)$condition)
+
+# DESeqDataSet generation
+ddSE <- DESeqDataSet(rse, design = ~condition)
+
+colData(ddSE)$condition
+
+# Leveling the condition factors such that control comes first
+ddSE$condition <- factor(ddSE$condition, levels = c("Ctrl", "Pat"))
+
+# verifying the level
+levels(colData(ddSE)$condition)
+
+# editing ENSEMBL rownames ENSG().1 with ENSG()
+rownames(ddSE) <- sub("\\..*$", "", rownames(ddSE))
+head(rownames(ddSE))
+```
+
+---
+
+# 5. Pre-filtering Low-Count Genes
+
+```{r prefilter}
+nrow(counts(ddSE)) # checking rows prior to filtering
+
+keep <- rowSums(counts(ddSE) > 10) >= 5  # customizable according to dataset
+ddSE <- ddSE[keep, ]
+
+nrow(counts(ddSE)) # checking rows post-filtering
+```
+
+---
+
+# 6. Differential Expression Analysis
+
+```{r run-deseq}
+DEA <- DESeq(ddSE)
+
+# correcting rownames
+rownames(DEA) <- sub("\\..*$", "", rownames(DEA))
+head(rownames(DEA))
+
+# storing DESeq2 results
+de_result <- results(DEA, alpha = 0.05)  # adjusted p-value default is 0.1
+summary(de_result)  # stats about log fold change
+
+resultsNames(DEA)
+
+#Log fold change shrinkage for visualization and ranking
+resLFC <- lfcShrink(DEA, coef="condition_Pat_vs_Ctrl", type="apeglm")
+resLFC
+
+# Reordering results based on adjusted p-value
+resOrdered <- de_result[order(de_result$padj), ]  # ascending order
+head(resOrdered)
+tail(resOrdered)
+```
+
+---
+
+# 7. Quality Control: PCA
+
+Assess whether samples cluster by condition (as expected) before trusting the DE results.
+
+```{r pca}
+vsd <- vst(DEA, blind = TRUE)  # variance-stabilizing transformation
+
+plotPCA(vsd, intgroup = "condition")
+```
+
+---
+
+# 8. Gene ID Annotation (ENSEMBL ↔ Symbol)
+
+```{r annotate-genes}
+# editing ENSEMBL rownames ENSG().1 with ENSG()
+rownames(de_result) <- sub("\\..*$", "", rownames(de_result))
+
+# Using clusterProfiler/AnnotationDbi for fetching gene symbols
+symbol <- mapIds(org.Hs.eg.db, keys = rownames(de_result),
+                  column = c("SYMBOL"), keytype = "ENSEMBL")
+
+keep <- !is.na(symbol)          # logical vector for valid gene symbol: T/F
+de_result <- de_result[keep, ]  # filter out ENSEMBL IDs without valid gene symbols
+symbol <- symbol[keep]          # filter symbol vector with valid gene symbols
+
+# including a column for gene symbol
+de_result$symbol <- symbol[rownames(de_result)]
+head(de_result)
+```
+
+---
+
+# 9. MA Plot
+
+```{r ma-plot}
+plotMA(de_result, ylim = c(-7, 7))
+
+
+plotMA(resLFC, ylim=c(-7,7)) #MA-plot for the shrunken log2 fold changes
+```
+
+---
+
+# 10. Heatmaps
+
+## 10.1 Common setup
+
+```{r heatmap-setup}
+# filtering top 20 significant genes based on adjusted p-values
+sig_genes <- de_result[(!is.na(de_result$padj) & de_result$padj < 0.05) & abs(de_result$log2FoldChange) > 1, ] #selecting top 20
+
+top20 <- head(sig_genes[order(sig_genes$padj), ], 20)
+top20_genes <- rownames(top20)
+top20_genes
+
+#gene expression matrix using counts and filtered genes
+matrix <- counts(DEA, normalized = TRUE)[top20_genes,]
+rownames(matrix) <- top20$symbol
+
+# annotation df for sample-condition info
+df <- as.data.frame(colData(ddSE)["condition"])
+df
+```
+
+## 10.2 pheatmap
+
+```{r heatmap-pheatmap}
+pheatmap(matrix,
+         scale = "row",
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         annotation_col = df)
+```
+
+## 10.3 ComplexHeatmap
+
+```{r heatmap-complexheatmap}
+mat.z <- t(apply(matrix, 1, scale))  # scaling of gene expression matrix
+colnames(mat.z) <- colnames(matrix)  # adding column names to the matrix
+
+col_anno <- HeatmapAnnotation(df = df)
+
+Heatmap(mat.z,
+        name = "z-score",
+        cluster_rows = FALSE,
+        cluster_columns = TRUE,
+        top_annotation = col_anno,
+        row_labels = rownames(matrix),
+        column_labels = colnames(mat.z))
+```
+
+---
+
+# 11. Volcano Plots
+
+## 11.1 ggplot2 version
+
+```{r volcano-ggplot}
+expr_df <- as.data.frame(de_result)
+expr_df$significance <- abs(expr_df$log2FoldChange) > 1 & expr_df$padj < 0.05
+
+ggplot(expr_df, aes(x = log2FoldChange, y = -log10(padj), color = significance)) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("blue", "red")) +
+  theme_classic()
+```
+
+## 11.2 EnhancedVolcano version
+
+```{r volcano-enhanced}
+EnhancedVolcano(expr_df,
+                lab = expr_df$symbol,
+                x = 'log2FoldChange',
+                y = 'padj',
+                legendLabels = c('NS', 'Log2 FC', 'p-adj', 'p-adj and log2 FC'),
+                pCutoff = 0.05,
+                FCcutoff = 1)
+```
+
+---
+
+# 12. GO Enrichment Analysis
+
+```{r go-enrichment}
+# filtering significant ENSEMBL IDs
+genes_to_test <- rownames(expr_df[abs(expr_df$log2FoldChange) > 1 & expr_df$padj < 0.05, ])
+
+genes_to_test
+
+
+# performing GO enrichment
+GO_results <- enrichGO(gene = genes_to_test,
+                       OrgDb = "org.Hs.eg.db",
+                       keyType = "ENSEMBL",
+                       ont = "BP",
+                       readable = TRUE)
+
+GO_results
+```
+
+```{r go-barplot, fig.height=8}
+barplot(GO_results, showCategory = 20)
+```
+
+```{r go-dotplot, fig.height=8}
+dotplot(GO_results, showCategory = 20)
+```
+
+---
+
+# 13. Gene Set Enrichment Analysis (GSEA)
+
+```{r gsea}
+gene_list <- expr_df$log2FoldChange  # selected based on log fold change
+names(gene_list) <- rownames(expr_df)
+gene_list <- sort(gene_list, decreasing = TRUE)  # gseGO expects a sorted ranking
+
+gse <- gseGO(gene_list, OrgDb = "org.Hs.eg.db", keyType = "ENSEMBL", ont = "BP")
+gse_df <- as.data.frame(gse)
+head(gse_df)
+```
+
+```{r gsea-plot}
+gseaplot(gse, geneSetID = 1)
+```
+
+---
+
+# Session Info
+
+```{r session-info}
+sessionInfo()
+```
