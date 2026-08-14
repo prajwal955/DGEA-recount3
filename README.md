@@ -19,10 +19,10 @@ An end-to-end bulk RNA-seq analysis workflow in R, starting from public data on 
 
 ## Key Results
 
-
+Volcano: figures/Volcano plot
 
 ## Files
 
-- `RNA-SEQ_LC.Rmd` — full annotated analysis script
+- `rnaseq-dgea-recount3.Rmd` — full annotated analysis script
 - `figures/` — exported plots referenced above
 
