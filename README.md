@@ -19,23 +19,22 @@ An end-to-end bulk RNA-seq analysis workflow in R, starting from public data on 
 
 ## Key Results
 
-**PCA plot** — samples cluster clearly by condition along the first principal component, confirming the Control and Patient groups are separable before trusting downstream DE results.
+**PCA plot** 
 
 ![PCA plot](figures/PCA.png)
 
-**Heatmap** — expression patterns of the top significant genes across samples, clustered by both gene and sample, show consistent, condition-specific expression blocks.
+**Heatmap** 
 
 ![Heatmap](figures/Heatmap.png)
 
-**Volcano plot** — combining fold change with statistical confidence reveals a clear pattern: down-regulated genes dominate, both in number and in significance, compared to a smaller, less pronounced set of up-regulated genes.
+**Volcano plot** 
 
 ![Volcano plot](figures/Volcano-plot.png)
 
-**GO enrichment** — functional enrichment of the significant gene set highlights the biological processes most associated with this expression signature.
+**GO enrichment** 
 
 ![GO Analysis](figures/GO-Analysis.png)
 
-Together, these results tell a consistent story: samples separate cleanly by condition, and the resulting differential expression signature is dominated by down-regulation, enriched for specific, interpretable biological processes.
 
 ## Files
 
