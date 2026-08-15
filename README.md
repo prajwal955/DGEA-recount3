@@ -51,5 +51,5 @@ The GO enrichment analysis of down-regulated genes shows that the majority of th
 - `rnaseq-dgea-recount3.Rmd` — full annotated analysis script
 - `figures/` — exported plots referenced above
 
-> **Note:** This script is written for the specific dataset and comparison described above (recount3 project SRP095512, Ctrl vs Pat), but the workflow is general-purpose. Feel free to fork and adapt it — swap in a different recount3 project ID, adjust the significance thresholds, or change the comparison groups to fit your own dataset.
+> **Note:** This script is written for the specific dataset and comparison described above (recount3 project SRP095512, Ctrl vs Pat), but the workflow is general-purpose. Please feel free to fork and adapt it, for example, swap in a different recount3 project ID, adjust the significance thresholds, or change the comparison groups to fit your own dataset.
 
