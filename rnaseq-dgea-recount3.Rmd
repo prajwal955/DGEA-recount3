@@ -309,7 +309,7 @@ EnhancedVolcano(expr_df,
 
 ```{r go-enrichment}
 # filtering significant ENSEMBL IDs
-genes_to_test <- rownames(expr_df[abs(expr_df$log2FoldChange) > 1 & expr_df$padj < 0.05, ])
+genes_to_test <- rownames(expr_df[expr_df$log2FoldChange < 1 & expr_df$padj < 0.05, ]) #filtering significant downregulated genes
 
 genes_to_test
 
