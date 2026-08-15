@@ -19,19 +19,29 @@ An end-to-end bulk RNA-seq analysis workflow in R, starting from public data on 
 
 ## Key Results
 
+This is a dataset containing approximate mRNA counts obtained from dermal epithelial cells of 6 healthy individuals and 4 diabetes-affected individuals.
+
 **PCA plot** 
+
+The PCA plot displays a clear clustering of samples based on condition (healthy (Ctrl) vs diseased (Pat)).
 
 ![PCA plot](figures/PCA.png)
 
 **Heatmap** 
 
+The heatmap displays that the control samples have a varied, but consistently higher gene expression than the diseased samples. These genes were the top twenty genes filtered out based on significance.
+
 ![Heatmap](figures/Heatmap.png)
 
 **Volcano plot** 
 
+The volcano plot displays a clear trend of down-regulation occupying the differential gene expression of this dataset with most of the significant genes leaning towards the negative log2FC quadrant.
+
 ![Volcano plot](figures/Volcano-plot.png)
 
 **GO enrichment** 
+
+The GO enrichment analysis of down-regulated genes shows that the majority of the significant genes are involved in skin cell growth, differentiation, and wound healing. The down-regulation of genes involved in such biological processes leads to the interpretation that the wound healing process is affected due to decreased expression of these genes, which in turn leads to the delay in healing of wounds in a diabetic patient compared to a healthy individual.
 
 ![GO Analysis](figures/GO-Analysis.png)
 
@@ -40,4 +50,6 @@ An end-to-end bulk RNA-seq analysis workflow in R, starting from public data on 
 
 - `rnaseq-dgea-recount3.Rmd` — full annotated analysis script
 - `figures/` — exported plots referenced above
+
+> **Note:** This script is written for the specific dataset and comparison described above (recount3 project SRP095512, Ctrl vs Pat), but the workflow is general-purpose. Feel free to fork and adapt it — swap in a different recount3 project ID, adjust the significance thresholds, or change the comparison groups to fit your own dataset.
 
